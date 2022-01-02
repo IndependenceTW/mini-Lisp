@@ -1,11 +1,19 @@
-all: compile
+all: bind
+	clear
 
+bind: compile_bison compile_flex
+	gcc -o lisp lisp.tab.o lex.yy.o -ll
+	
+compile_bison:
+	bison -d ./src/lisp.y
+	gcc -c lisp.tab.c
 
-compile: l_to_c
-	gcc -o lisp ./src/lisp.yy.c -lfl
-
-l_to_c:
-	flex -o ./src/lisp.yy.c ./src/lisp.l
+compile_flex:
+	flex ./src/lisp.l
+	gcc -c ./lex.yy.c
 
 clean:
-	@rm ./src/*.yy.c
+	@rm ./*.c
+	@rm ./*.h
+	@rm ./*.o
+	clear
