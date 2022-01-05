@@ -14,22 +14,34 @@ bool_val    (#t)|(#f)
 
 "print-num" {return PRINT_N;}
 "print-bool" {return PRINT_B;}
+"+" {return PLS;}
+"-" {return MIN;}
+"*" {return MUL;}
+"/" {return DIV;}
+"mod" {return MOD;}
+">" {return GREATER;}
+"<" {return SMALLER;}
+"=" {return EQUAL;}
+
+"not" {return NOT;}
+"or" {return OR;}
+"and" {return AND;}
 
 [\(\)] {return yytext[0];}
 
 {bool_val}  {
                 switch (yytext[1]) {
                     case 't':
-                        yylval.AST_NODE = new_node(new_object(boolean, NULL, 0, true), NULL, NULL);
+                        yylval.AST_NODE = new_bool(true, NULL, NULL);
                         break;
                     case 'f':
-                        yylval.AST_NODE = new_node(new_object(boolean, NULL, 0, false), NULL, NULL);
+                        yylval.AST_NODE = new_bool(false, NULL, NULL);
                         break;
                 }
                 return BOOL;
             }
 {number}    {
-                yylval.AST_NODE = new_node(new_object(integer, NULL, atoi(yytext), false), NULL, NULL);
+                yylval.AST_NODE = new_num(atoi(yytext), NULL, NULL);
                 return NUM;
             }
 {id}        {}

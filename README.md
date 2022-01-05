@@ -11,8 +11,8 @@
 ### Basic
 - [x] Syntax Validation
 - [x] Print
-- [ ] Numerical Operations
-- [ ] Logical Operators
+- [x] Numerical Operations
+- [x] Logical Operators
 - [ ] Variable Defination
 - [ ] Function
 - [ ] Named Function
@@ -23,3 +23,7 @@
 - [ ] Nested Function
 - [ ] First-class Function
 
+
+## Method
+- Use tree(reference github of others)
+- Use stack(My idea)

@@ -1,5 +1,5 @@
 all: bind
-	clear
+	#clear
 
 bind: compile_bison compile_flex
 	gcc -o lisp lisp.tab.o lex.yy.o -ll

@@ -12,11 +12,24 @@
 
     /*The object type*/
     typedef unsigned long long type;
+    
+    /*random id(5000000000-10000000000) for each type*/
     #define no_type         6627973484
     #define equal_to_parent 7081252647 
     /*function type*/
     #define print_num       5758909184
     #define print_bool      5354207974
+    #define op_plus         6673629119
+    #define op_minus        6713860669
+    #define op_multiply     6073937088
+    #define op_divide       8259115088
+    #define op_modulus      8662978513
+    #define op_greater      6209294872
+    #define op_smaller      8205064019
+    #define op_equal        8982314659
+    #define op_and          8876816213
+    #define op_or           7164729157
+    #define op_not          7042065125
     /*constant type*/
     #define integer         9832221520
     #define boolean         5478890977
@@ -44,9 +57,20 @@
     };
     /*function of ast node*/
     ast_node *new_node(object *obj, ast_node *left, ast_node *right);
+    /*the new node functions of different type*/
+    ast_node *new_empty(ast_node *left, ast_node *right);
+    ast_node *new_equal_to_parent(ast_node *left, ast_node *right);
+    ast_node *new_num(int num, ast_node *left, ast_node *right);
+    ast_node *new_bool(bool b, ast_node *left, ast_node *right);
+    ast_node *new_operator(type t, ast_node *left, ast_node *right);
+
+    /*free function*/
+    ast_node *free_node(ast_node *target);
 
     /*ast tree root*/
     ast_node *root;
+
+    // TODO: Type checking
 
     void yyerror(const char *message);
     void exec();
@@ -60,37 +84,114 @@
 }
 
 %type<AST_NODE> stmts stmt
-%type<AST_NODE> exp
+%type<AST_NODE> exps exp
 %type<AST_NODE> print_stmt
+%type<AST_NODE> num_op
+%type<AST_NODE> greater smaller equal
+%type<AST_NODE> plus minus multiply divide modulus
+%type<AST_NODE> logical_op
+%type<AST_NODE> and_op or_op not_op
 
 %token<AST_NODE> PRINT_N PRINT_B
 %token<AST_NODE> BOOL NUM
+%token<AST_NODE> PLS MIN MUL DIV MOD GREATER SMALLER EQUAL
+%token<AST_NODE> AND OR NOT
 
 %%
 program     :stmts {root = $1;}
 ;
-stmts       :stmt stmts 
-            {
-                $$ = new_node(new_object(no_type, NULL, 0, false), $1, $2);
-            }
+stmts       :stmt stmts {$$ = new_empty($1, $2);}
             |stmt {$$ = $1;}
 ;
 stmt        :exp {$$ = $1;}
             |print_stmt {$$ = $1;}
 
 ;
+exps        :exp exps {$$ = new_equal_to_parent($1, $2);}
+            |exp {$$ = $1;}  
+;
 exp         :BOOL {$$ = $1;}
             |NUM {$$ = $1;}
+            |num_op {$$ = $1;}
+            |logical_op {$$ = $1;}
 ;
 print_stmt  :'(' PRINT_N exp ')' 
             {
-                $$ = new_node(new_object(print_num, NULL, 0, false), $3, NULL);
+                $$ = new_operator(print_num, $3, NULL);
             }
             |'(' PRINT_B exp ')'
             {
-                $$ = new_node(new_object(print_bool, NULL, 0, false), $3, NULL);
+                $$ = new_operator(print_bool, $3, NULL);
             }
-
+;
+num_op      :plus {$$ = $1;}
+            |minus {$$ = $1;}
+            |multiply {$$ = $1;}
+            |divide {$$ = $1;}
+            |modulus {$$ = $1;}
+            |greater {$$ = $1;}
+            |smaller {$$ = $1;}
+            |equal {$$ = $1;}
+;
+    plus    :'(' PLS exp exps ')'
+    {
+        $$ = new_operator(op_plus, $3, $4);
+    }
+    ;
+    minus   :'(' MIN exp exp ')'
+    {
+        $$ = new_operator(op_minus, $3, $4);
+    }
+    ;
+    multiply:'(' MUL exp exps ')'
+    {
+        $$ = new_operator(op_multiply, $3, $4);
+    }
+    ;
+    divide  :'(' DIV exp exp ')'
+    {
+        $$ = new_operator(op_divide, $3, $4);
+    }
+    ;
+    modulus :'(' MOD exp exp ')'
+    {
+        $$ = new_operator(op_modulus, $3, $4);
+    }
+    ;
+    greater :'(' GREATER exp exp ')'
+    {
+        $$ = new_operator(op_greater, $3, $4);
+    }
+    ;
+    smaller :'(' SMALLER exp exp ')'
+    {
+        $$ = new_operator(op_smaller, $3, $4);
+    }
+    ;
+    equal   :'(' EQUAL exp exps ')'
+    {
+        $$ = new_operator(op_equal, $3, $4);
+    }
+;
+logical_op  :and_op {$$ = $1;}
+            |or_op {$$ = $1;}
+            |not_op {$$ = $1;}
+;
+    and_op: '(' AND exp exps ')'
+    {
+        $$ = new_operator(op_and, $3, $4);
+    }
+    ;
+    or_op: '(' OR exp exps ')'
+    {
+        $$ = new_operator(op_or, $3, $4);
+    }
+    ;
+    not_op: '(' NOT exp ')'
+    {
+        $$ = new_operator(op_not, $3, NULL);
+    }
+    ;
 %%
 
 object *new_object(type t, char *name, int ival, bool bval) {
@@ -103,12 +204,44 @@ object *new_object(type t, char *name, int ival, bool bval) {
 
     return new_obj;
 }
+
 ast_node *new_node(object *obj, ast_node *left, ast_node *right) {
     ast_node *new_n = (ast_node *) malloc(sizeof(ast_node));
 
     new_n->obj = obj;
     new_n->left_child = left;
     new_n->right_child = right;
+}
+
+ast_node *new_empty(ast_node *left, ast_node *right) {
+    return new_node(new_object(no_type, NULL, 0, false), left, right);
+}
+
+ast_node *new_equal_to_parent(ast_node *left, ast_node *right) {
+    return new_node(new_object(equal_to_parent, "=", 0, false), left, right);
+}
+
+ast_node *new_num(int num, ast_node *left, ast_node *right) {
+    return new_node(new_object(integer, NULL, num, false), left, right);
+}
+
+ast_node *new_bool(bool b, ast_node *left, ast_node *right) {
+    return new_node(new_object(boolean, NULL, 0, b), left, right);
+}
+
+ast_node *new_operator(type t, ast_node *left, ast_node *right) {
+    return new_node(new_object(t, NULL, 0, false), left, right);
+}
+
+ast_node *free_node(ast_node *target) {
+    if (target != NULL) {
+        free_node(target->left_child);
+        free_node(target->right_child);
+
+        free(target);
+    }
+    
+    return NULL;
 }
 
 void exec() {
@@ -121,8 +254,8 @@ void traverse(ast_node *node, type parent_type){
 
     switch (node->obj->t) {
         case no_type:{
-            traverse(node->left_child, node->left_child->obj->t);
-            traverse(node->right_child, node->right_child->obj->t);
+            traverse(node->left_child, node->obj->t);
+            traverse(node->right_child, node->obj->t);
 
             break;
         }
@@ -137,8 +270,10 @@ void traverse(ast_node *node, type parent_type){
             break;
         }
         case print_num: {
-            traverse(node->left_child, node->left_child->obj->t);
+            traverse(node->left_child, node->obj->t);
+
             //TODO: type checking
+            
             if(DEBUG_TAG) {
                 printf("print-num: ");
             }
@@ -146,12 +281,245 @@ void traverse(ast_node *node, type parent_type){
             break;
         }
         case print_bool: {
-            traverse(node->left_child, node->left_child->obj->t);
+            traverse(node->left_child, node->obj->t);
+
             //TODO: type checking
+            
             if(DEBUG_TAG) {
                 printf("print-bool: ");
             }
             printf("%s\n", node->left_child->obj->bval ? "#t" : "#f");
+            break;
+        }
+        case op_plus: {
+            traverse(node->left_child, node->obj->t);
+            traverse(node->right_child, node->obj->t);
+            //TODO: type checking
+
+            int num1 = node->left_child->obj->ival;
+            int num2 = node->right_child->obj->ival;
+
+            if(DEBUG_TAG) {
+                printf("%d + %d = %d\n", num1, num2, num1 + num2);
+            }
+
+            node->obj->t = integer;
+            node->obj->ival = num1 + num2;
+
+            node->left_child = free_node(node->left_child);
+            node->right_child = free_node(node->right_child);
+
+            break;
+        }
+        case op_minus: {
+            traverse(node->left_child, node->obj->t);
+            traverse(node->right_child, node->obj->t);
+
+            //TODO: type checking
+
+            int num1 = node->left_child->obj->ival;
+            int num2 = node->right_child->obj->ival;
+
+            if(DEBUG_TAG) {
+                printf("%d - %d = %d\n", num1, num2, num1 - num2);
+            }
+
+            node->obj->t = integer;
+            node->obj->ival = num1 - num2;
+
+            node->left_child = free_node(node->left_child);
+            node->right_child = free_node(node->right_child);
+
+            break;
+        }
+        case op_multiply: {
+            traverse(node->left_child, node->obj->t);
+            traverse(node->right_child, node->obj->t);
+
+            //TODO: type checking
+
+            int num1 = node->left_child->obj->ival;
+            int num2 = node->right_child->obj->ival;
+
+            if(DEBUG_TAG) {
+                printf("%d * %d = %d\n", num1, num2, num1 * num2);
+            }
+
+            node->obj->t = integer;
+            node->obj->ival = num1 * num2;
+
+            node->left_child = free_node(node->left_child);
+            node->right_child = free_node(node->right_child);
+
+            break;
+        }
+        case op_divide: {
+            traverse(node->left_child, node->obj->t);
+            traverse(node->right_child, node->obj->t);
+
+            //TODO: type checking
+
+            int num1 = node->left_child->obj->ival;
+            int num2 = node->right_child->obj->ival;
+
+            if(DEBUG_TAG) {
+                printf("%d / %d = %d\n", num1, num2, num1 / num2);
+            }
+
+            node->obj->t = integer;
+            node->obj->ival = num1 / num2;
+
+            node->left_child = free_node(node->left_child);
+            node->right_child = free_node(node->right_child);
+
+            break;
+        }
+        case op_modulus: {
+            traverse(node->left_child, node->obj->t);
+            traverse(node->right_child, node->obj->t);
+
+            //TODO: type checking
+
+            int num1 = node->left_child->obj->ival;
+            int num2 = node->right_child->obj->ival;
+
+            if(DEBUG_TAG) {
+                printf("%d mod %d = %d\n", num1, num2, num1 % num2);
+            }
+
+            node->obj->t = integer;
+            node->obj->ival = num1 % num2;
+
+            node->left_child = free_node(node->left_child);
+            node->right_child = free_node(node->right_child);
+
+            break;
+        }
+        case op_greater: {
+            traverse(node->left_child, node->obj->t);
+            traverse(node->right_child, node->obj->t);
+
+            //TODO: type checking
+
+            int num1 = node->left_child->obj->ival;
+            int num2 = node->right_child->obj->ival;
+
+            if(DEBUG_TAG) {
+                printf("%d > %d ? \"%s\"\n", num1, num2, (num1 > num2 ? "#t" : "#f"));
+            }
+
+            node->obj->t = boolean;
+            node->obj->bval = (num1 > num2 ? true : false);
+
+            node->left_child = free_node(node->left_child);
+            node->right_child = free_node(node->right_child);
+
+            break;
+        }
+        case op_smaller: {
+            traverse(node->left_child, node->obj->t);
+            traverse(node->right_child, node->obj->t);
+
+            //TODO: type checking
+
+            int num1 = node->left_child->obj->ival;
+            int num2 = node->right_child->obj->ival;
+
+            if(DEBUG_TAG) {
+                printf("%d < %d ? \"%s\"\n", num1, num2, (num1 < num2 ? "#t" : "#f"));
+            }
+
+            node->obj->t = boolean;
+            node->obj->bval = (num1 < num2 ? true : false);
+
+            node->left_child = free_node(node->left_child);
+            node->right_child = free_node(node->right_child);
+            break;
+        }
+        case op_equal: {
+            traverse(node->left_child, node->obj->t);
+            traverse(node->right_child, node->obj->t);
+
+            char *check =  node->right_child->obj->name;
+
+            //TODO: type checking
+
+            int num1 = node->left_child->obj->ival;
+            int num2 = node->right_child->obj->ival;
+            
+
+            if(DEBUG_TAG) {
+                printf("%d = %d ? \"%s\"\n", num1, num2, (num1 == num2 ? "#t" : "#f"));
+            }
+
+            node->obj->t = boolean;
+            node->obj->bval = (num1 == num2 ? true : false);
+            node->obj->ival = num1;
+
+            if(check == "="){
+                node->obj->bval *= node->right_child->obj->bval;
+                if(DEBUG_TAG) printf("Final Result: %s\n", (node->obj->bval ? "#t" : "#f"));
+            }
+            node->left_child = free_node(node->left_child);
+            node->right_child = free_node(node->right_child);
+            break;
+        }
+        case op_and: {
+            traverse(node->left_child, node->obj->t);
+            traverse(node->right_child, node->obj->t);
+
+            //TODO: type checking
+
+            bool val1 = node->left_child->obj->bval;
+            bool val2 = node->right_child->obj->bval;
+
+            if(DEBUG_TAG) {
+                printf("%s and %s = %s\n", (val1 ? "#t" : "#f"), (val2 ? "#t" : "#f"), (val1 * val2 ? "#t" : "#f"));
+            }
+
+            node->obj->t = boolean;
+            node->obj->bval = (val1 * val2 ? true : false);
+
+            node->left_child = free_node(node->left_child);
+            node->right_child = free_node(node->right_child);
+            break;
+        }
+        case op_or: {
+            traverse(node->left_child, node->obj->t);
+            traverse(node->right_child, node->obj->t);
+
+            //TODO: type checking
+
+            bool val1 = node->left_child->obj->bval;
+            bool val2 = node->right_child->obj->bval;
+
+            if(DEBUG_TAG) {
+                printf("%s or %s = %s\n", (val1 ? "#t" : "#f"), (val2 ? "#t" : "#f"), (val1 + val2 ? "#t" : "#f"));
+            }
+
+            node->obj->t = boolean;
+            node->obj->bval = (val1 + val2 ? true : false);
+
+            node->left_child = free_node(node->left_child);
+            node->right_child = free_node(node->right_child);
+            break;
+        }
+        case op_not: {
+            traverse(node->left_child, node->obj->t);
+
+            //TODO: type checking
+
+            bool val = node->left_child->obj->bval;
+
+            if(DEBUG_TAG) {
+                printf("not %s = %s\n", (val ? "#t" : "#f"), (!val ? "#t" : "#f"));
+            }
+
+            node->obj->t = boolean;
+            node->obj->bval = (!val ? true : false);
+
+            node->left_child = free_node(node->left_child);
+            node->right_child = free_node(node->right_child);
             break;
         }
     }
