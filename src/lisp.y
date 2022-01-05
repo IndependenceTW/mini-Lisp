@@ -30,6 +30,8 @@
     #define op_and          8876816213
     #define op_or           7164729157
     #define op_not          7042065125
+    #define if_stmt         7508748275
+    #define if_else         8179782206
     /*constant type*/
     #define integer         9832221520
     #define boolean         5478890977
@@ -91,11 +93,14 @@
 %type<AST_NODE> plus minus multiply divide modulus
 %type<AST_NODE> logical_op
 %type<AST_NODE> and_op or_op not_op
+%type<AST_NODE> if_exp
+%type<AST_NODE> test_exp then_exp else_exp
 
 %token<AST_NODE> PRINT_N PRINT_B
 %token<AST_NODE> BOOL NUM
 %token<AST_NODE> PLS MIN MUL DIV MOD GREATER SMALLER EQUAL
 %token<AST_NODE> AND OR NOT
+%token<AST_NODE> IF
 
 %%
 program     :stmts {root = $1;}
@@ -114,6 +119,7 @@ exp         :BOOL {$$ = $1;}
             |NUM {$$ = $1;}
             |num_op {$$ = $1;}
             |logical_op {$$ = $1;}
+            |if_exp {$$ = $1;}
 ;
 print_stmt  :'(' PRINT_N exp ')' 
             {
@@ -177,20 +183,32 @@ logical_op  :and_op {$$ = $1;}
             |or_op {$$ = $1;}
             |not_op {$$ = $1;}
 ;
-    and_op: '(' AND exp exps ')'
+    and_op  : '(' AND exp exps ')'
     {
         $$ = new_operator(op_and, $3, $4);
     }
     ;
-    or_op: '(' OR exp exps ')'
+    or_op   : '(' OR exp exps ')'
     {
         $$ = new_operator(op_or, $3, $4);
     }
     ;
-    not_op: '(' NOT exp ')'
+    not_op  : '(' NOT exp ')'
     {
         $$ = new_operator(op_not, $3, NULL);
     }
+;
+if_exp      : '(' IF test_exp then_exp else_exp ')'
+{
+    ast_node *statement = new_operator(if_else, $4, $5);
+    $$ = new_operator(if_stmt, $3, statement);
+}
+;
+    test_exp: exp {$$ = $1;}
+    ;
+    then_exp: exp {$$ = $1;}
+    ;
+    else_exp: exp {$$ = $1;}
     ;
 %%
 
@@ -257,6 +275,8 @@ void traverse(ast_node *node, type parent_type){
             traverse(node->left_child, node->obj->t);
             traverse(node->right_child, node->obj->t);
 
+            node->left_child = free_node(node->left_child);
+            node->right_child = free_node(node->right_child);
             break;
         }
         case equal_to_parent:{
@@ -278,6 +298,9 @@ void traverse(ast_node *node, type parent_type){
                 printf("print-num: ");
             }
             printf("%d\n", node->left_child->obj->ival);
+
+            node->left_child = free_node(node->left_child);
+            node->right_child = free_node(node->right_child);
             break;
         }
         case print_bool: {
@@ -289,6 +312,9 @@ void traverse(ast_node *node, type parent_type){
                 printf("print-bool: ");
             }
             printf("%s\n", node->left_child->obj->bval ? "#t" : "#f");
+
+            node->left_child = free_node(node->left_child);
+            node->right_child = free_node(node->right_child);
             break;
         }
         case op_plus: {
@@ -520,6 +546,34 @@ void traverse(ast_node *node, type parent_type){
 
             node->left_child = free_node(node->left_child);
             node->right_child = free_node(node->right_child);
+            break;
+        }
+        case if_stmt: {
+            traverse(node->left_child, node->obj->t);
+
+            //TODO: type checking
+
+            if(node->left_child->obj->bval) {
+                if(DEBUG_TAG) printf("Go to true statement\n");
+
+                traverse(node->right_child->left_child, node->right_child->obj->t);
+
+                node->obj->t = node->right_child->left_child->obj->t;
+                node->obj->ival = node->right_child->left_child->obj->ival;
+                node->obj->bval = node->right_child->left_child->obj->bval;
+            }
+            else {
+                if(DEBUG_TAG) printf("Go to false statement\n");
+                traverse(node->right_child->right_child, node->right_child->obj->t);
+
+                node->obj->t = node->right_child->right_child->obj->t;
+                node->obj->ival = node->right_child->right_child->obj->ival;
+                node->obj->bval = node->right_child->right_child->obj->bval;
+            }
+
+            node->left_child = free_node(node->left_child);
+            node->right_child = free_node(node->right_child);
+
             break;
         }
     }

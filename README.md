@@ -13,7 +13,7 @@
 - [x] Print
 - [x] Numerical Operations
 - [x] Logical Operators
-- [ ] if Expression
+- [x] if Expression
 - [ ] Variable Defination
 - [ ] Function
 - [ ] Named Function

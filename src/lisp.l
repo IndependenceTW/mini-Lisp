@@ -27,6 +27,8 @@ bool_val    (#t)|(#f)
 "or" {return OR;}
 "and" {return AND;}
 
+"if" {return IF;}
+
 [\(\)] {return yytext[0];}
 
 {bool_val}  {
