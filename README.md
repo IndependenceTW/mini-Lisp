@@ -13,6 +13,7 @@
 - [x] Print
 - [x] Numerical Operations
 - [x] Logical Operators
+- [ ] if Expression
 - [ ] Variable Defination
 - [ ] Function
 - [ ] Named Function
@@ -23,7 +24,8 @@
 - [ ] Nested Function
 - [ ] First-class Function
 
-
+<!--
 ## Method
 - Use tree(reference github of others)
 - Use stack(My idea)
+-->
