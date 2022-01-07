@@ -6,11 +6,16 @@ separator   [\t\n\r\ ]
 letter      [a-z]
 digit       [0-9]
 
-number      0|[1-9]{digit}*|'-'[1-9]{digit}*
+number      0|[1-9]{digit}*|-[1-9]{digit}*
 id          {letter}({letter}|{digit}|'-')*
 bool_val    (#t)|(#f)
 
 %%
+
+{number}    {
+                yylval.AST_NODE = new_num(atoi(yytext), NULL, NULL);
+                return NUM;
+            }
 
 "print-num" {return PRINT_N;}
 "print-bool" {return PRINT_B;}
@@ -42,10 +47,6 @@ bool_val    (#t)|(#f)
                         break;
                 }
                 return BOOL;
-            }
-{number}    {
-                yylval.AST_NODE = new_num(atoi(yytext), NULL, NULL);
-                return NUM;
             }
 {id}        {
                 yylval.AST_NODE = new_id(strdup(yytext), NULL, NULL);

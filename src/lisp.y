@@ -3,7 +3,7 @@
     #include <stdlib.h>
     #include <string.h>
 
-    #define DEBUG_TAG 1
+    #define DEBUG_TAG 0
     #define MAX 100
 
     /*boolean type*/

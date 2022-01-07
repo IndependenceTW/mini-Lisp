@@ -14,7 +14,10 @@
 - [x] Numerical Operations
 - [x] Logical Operators
 - [x] if Expression
-- [ ] Variable Defination
+- [x] Variable Defination
+
+---
+Give up :(
 - [ ] Function
 - [ ] Named Function
 
