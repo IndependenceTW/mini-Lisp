@@ -4,6 +4,7 @@
     #include <string.h>
 
     #define DEBUG_TAG 1
+    #define MAX 100
 
     /*boolean type*/
     typedef short bool;
@@ -32,9 +33,14 @@
     #define op_not          7042065125
     #define if_stmt         7508748275
     #define if_else         8179782206
+    #define function        5615781688
+    #define def_function    8004400219
+    #define def_variable    7437795984
+    #define get_variable    6576760245
     /*constant type*/
     #define integer         9832221520
     #define boolean         5478890977
+    #define id              7903098729
 
 
     /*An object*/
@@ -64,17 +70,29 @@
     ast_node *new_equal_to_parent(ast_node *left, ast_node *right);
     ast_node *new_num(int num, ast_node *left, ast_node *right);
     ast_node *new_bool(bool b, ast_node *left, ast_node *right);
+    ast_node *new_id(char *c, ast_node *left, ast_node *right);
     ast_node *new_operator(type t, ast_node *left, ast_node *right);
 
     /*free function*/
     ast_node *free_node(ast_node *target);
 
+    /*ast clone function*/
+    ast_node *ast_clone(ast_node *target);
+
     /*ast tree root*/
     ast_node *root;
 
+    /*variables*/
+    ast_node *defined_variables[MAX];
+    int variable_top;
+    /*functions about variables*/
+    void add_variables(ast_node *node);
+    ast_node *get_variables(char *name);
+    
     // TODO: Type checking
 
     void yyerror(const char *message);
+    void init();
     void exec();
     void traverse(ast_node *node, type parent_type);
 
@@ -95,12 +113,14 @@
 %type<AST_NODE> and_op or_op not_op
 %type<AST_NODE> if_exp
 %type<AST_NODE> test_exp then_exp else_exp
+%type<AST_NODE> variable def_stmt
 
 %token<AST_NODE> PRINT_N PRINT_B
-%token<AST_NODE> BOOL NUM
+%token<AST_NODE> BOOL NUM ID
 %token<AST_NODE> PLS MIN MUL DIV MOD GREATER SMALLER EQUAL
 %token<AST_NODE> AND OR NOT
 %token<AST_NODE> IF
+%token<AST_NODE> DEF
 
 %%
 program     :stmts {root = $1;}
@@ -110,6 +130,7 @@ stmts       :stmt stmts {$$ = new_empty($1, $2);}
 ;
 stmt        :exp {$$ = $1;}
             |print_stmt {$$ = $1;}
+            |def_stmt {$$ = $1;}
 
 ;
 exps        :exp exps {$$ = new_equal_to_parent($1, $2);}
@@ -120,6 +141,12 @@ exp         :BOOL {$$ = $1;}
             |num_op {$$ = $1;}
             |logical_op {$$ = $1;}
             |if_exp {$$ = $1;}
+            |variable 
+            {
+                ast_node *node = new_operator(get_variable, NULL, NULL);
+                node->obj->name = $1->obj->name;
+                $$ = node;
+            }
 ;
 print_stmt  :'(' PRINT_N exp ')' 
             {
@@ -209,7 +236,19 @@ if_exp      : '(' IF test_exp then_exp else_exp ')'
     then_exp: exp {$$ = $1;}
     ;
     else_exp: exp {$$ = $1;}
-    ;
+;
+def_stmt    : '(' DEF variable exp ')'
+{
+    if($4->obj->t == function) {
+        $$ = new_operator(def_function, $3, $4);
+    }
+    else {
+        $$ = new_operator(def_variable, $3, $4);
+    }
+}
+;
+    variable: ID {$$ = $1;}
+;
 %%
 
 object *new_object(type t, char *name, int ival, bool bval) {
@@ -247,6 +286,10 @@ ast_node *new_bool(bool b, ast_node *left, ast_node *right) {
     return new_node(new_object(boolean, NULL, 0, b), left, right);
 }
 
+ast_node *new_id(char *str, ast_node *left, ast_node *right) {
+    return new_node(new_object(id, str, 0, false), left, right);
+}
+
 ast_node *new_operator(type t, ast_node *left, ast_node *right) {
     return new_node(new_object(t, NULL, 0, false), left, right);
 }
@@ -260,6 +303,31 @@ ast_node *free_node(ast_node *target) {
     }
     
     return NULL;
+}
+
+ast_node *ast_clone(ast_node *target) {
+    if(target == NULL) return NULL;
+
+    ast_node *new_node = new_empty(ast_clone(target->left_child), ast_clone(target->right_child));
+
+    new_node->obj->t = target->obj->t;
+    new_node->obj->name = target->obj->name;
+    new_node->obj->ival = target->obj->ival;
+    new_node->obj->bval = target->obj->bval;
+
+    return new_node;
+}
+
+void add_variables(ast_node *node) {
+    defined_variables[++variable_top] = node;
+}
+
+ast_node *get_variables(char *name) {
+    for(int i = 0; i <= variable_top; i++) {
+        if(strcmp(defined_variables[i]->obj->name, name) == 0) {
+            return ast_clone(defined_variables[i]);
+        }
+    }
 }
 
 void exec() {
@@ -576,6 +644,30 @@ void traverse(ast_node *node, type parent_type){
 
             break;
         }
+        case def_variable: {
+            node->right_child->obj->name = node->left_child->obj->name;
+            
+            add_variables(node->right_child);
+            break;
+        }
+        case get_variable: {
+            ast_node *result = get_variables(node->obj->name);
+
+            node->obj->t = result->obj->t;
+            node->obj->ival = result->obj->ival;
+            node->obj->bval = result->obj->bval;
+
+            node->right_child = ast_clone(result->right_child);
+            node->left_child = ast_clone(result->left_child);
+
+            traverse(node, parent_type);
+
+            if(DEBUG_TAG) {
+                printf("find variable: %s\n", node->obj->name);
+            }
+
+            break;
+        }
     }
 }
 
@@ -584,7 +676,12 @@ void yyerror(const char *message) {
     exit(1);
 }
 
+void init() {
+    variable_top = -1;
+}
+
 int main() {
+    init();
     yyparse();
     exec();
     return 0;

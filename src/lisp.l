@@ -28,6 +28,7 @@ bool_val    (#t)|(#f)
 "and" {return AND;}
 
 "if" {return IF;}
+"define" {return DEF;}
 
 [\(\)] {return yytext[0];}
 
@@ -46,7 +47,10 @@ bool_val    (#t)|(#f)
                 yylval.AST_NODE = new_num(atoi(yytext), NULL, NULL);
                 return NUM;
             }
-{id}        {}
+{id}        {
+                yylval.AST_NODE = new_id(strdup(yytext), NULL, NULL);
+                return ID;
+            }
 {separator} {}
 .           {}
 
