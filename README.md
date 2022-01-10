@@ -27,8 +27,13 @@ Give up :(
 - [ ] Nested Function
 - [ ] First-class Function
 
-<!--
+
 ## Method
-- Use tree(reference github of others)
-- Use stack(My idea)
--->
+- Use tree
+    - 就是把整個程式建成一棵樹之後再處理
+    - 以 (+ 1 2)來說，我們會先把 '+' 當作一個root node，然後左右小孩分別是1和2，這樣就建好樹了
+    - 然後就是把建好的樹用postorder的方式拜訪過一次，就完成了
+
+- Use stack
+    這是突發奇想的方法，複雜程度應該跟tree差不多
+
